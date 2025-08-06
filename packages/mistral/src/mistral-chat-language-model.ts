@@ -26,6 +26,30 @@ import {
 import { mistralFailedResponseHandler } from './mistral-error';
 import { prepareTools } from './mistral-prepare-tools';
 
+// Allow only https URLs to trusted domains (e.g., mistral.ai or localhost for dev)
+function validateBaseURL(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Only allow https protocol
+    if (parsed.protocol !== 'https:') {
+      throw new Error('Only HTTPS protocol is allowed for baseURL.');
+    }
+    // Allow only specific trusted hosts (add more as needed)
+    const allowedHosts = [
+      'api.mistral.ai',
+      'mistral.ai',
+      'localhost',
+      '127.0.0.1',
+    ];
+    if (!allowedHosts.includes(parsed.hostname)) {
+      throw new Error(`baseURL host not allowed: ${parsed.hostname}`);
+    }
+    return url.replace(/\/$/, ''); // Remove trailing slash for consistency
+  } catch (e) {
+    throw new Error(`Invalid baseURL: ${(e as Error).message}`);
+  }
+}
+
 type MistralChatConfig = {
   provider: string;
   baseURL: string;
@@ -39,10 +63,12 @@ export class MistralChatLanguageModel implements LanguageModelV2 {
   readonly modelId: MistralChatModelId;
 
   private readonly config: MistralChatConfig;
+  private readonly validatedBaseURL: string;
 
   constructor(modelId: MistralChatModelId, config: MistralChatConfig) {
     this.modelId = modelId;
     this.config = config;
+    this.validatedBaseURL = validateBaseURL(config.baseURL);
   }
 
   get provider(): string {
@@ -171,7 +197,7 @@ export class MistralChatLanguageModel implements LanguageModelV2 {
       value: response,
       rawValue: rawResponse,
     } = await postJsonToApi({
-      url: `${this.config.baseURL}/chat/completions`,
+      url: `${this.validatedBaseURL}/chat/completions`,
       headers: combineHeaders(this.config.headers(), options.headers),
       body,
       failedResponseHandler: mistralFailedResponseHandler,
@@ -240,7 +266,7 @@ export class MistralChatLanguageModel implements LanguageModelV2 {
     const body = { ...args, stream: true };
 
     const { responseHeaders, value: response } = await postJsonToApi({
-      url: `${this.config.baseURL}/chat/completions`,
+      url: `${this.validatedBaseURL}/chat/completions`,
       headers: combineHeaders(this.config.headers(), options.headers),
       body,
       failedResponseHandler: mistralFailedResponseHandler,
