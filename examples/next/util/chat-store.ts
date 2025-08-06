@@ -67,7 +67,15 @@ export async function readAllChats(): Promise<ChatData[]> {
   );
 }
 
+function isValidChatId(id: string): boolean {
+  // Only allow alphanumeric, dash, and underscore, at least 1 character
+  return /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
 async function getChatFile(id: string): Promise<string> {
+  if (!isValidChatId(id)) {
+    throw new Error('Invalid chat id');
+  }
   const chatDir = path.join(process.cwd(), '.chats');
 
   if (!existsSync(chatDir)) mkdirSync(chatDir, { recursive: true });
