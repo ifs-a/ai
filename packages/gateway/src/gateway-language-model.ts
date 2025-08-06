@@ -21,6 +21,28 @@ import type { GatewayModelId } from './gateway-language-model-settings';
 import { asGatewayError } from './errors';
 import { parseAuthMethod } from './errors/parse-auth-method';
 
+// List of headers that must not be overridden by untrusted input
+const RESTRICTED_HEADER_NAMES = [
+  'authorization',
+  'cookie',
+  'set-cookie',
+  'ai-language-model-specification-version',
+  'ai-language-model-id',
+  'ai-language-model-streaming',
+];
+
+function sanitizeHeaders(untrustedHeaders: Record<string, string> | undefined): Record<string, string> {
+  if (!untrustedHeaders) return {};
+  const sanitized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(untrustedHeaders)) {
+    // Prevent restricted headers from being set/overridden
+    if (!RESTRICTED_HEADER_NAMES.includes(key.trim().toLowerCase())) {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
+
 type GatewayChatConfig = GatewayConfig & {
   provider: string;
   o11yHeaders: Resolvable<Record<string, string>>;
@@ -65,7 +87,7 @@ export class GatewayLanguageModel implements LanguageModelV2 {
         url: this.getUrl(),
         headers: combineHeaders(
           resolvedHeaders,
-          options.headers,
+          sanitizeHeaders(options.headers),
           this.getModelConfigHeaders(this.modelId, false),
           await resolve(this.config.o11yHeaders),
         ),
@@ -103,7 +125,7 @@ export class GatewayLanguageModel implements LanguageModelV2 {
         url: this.getUrl(),
         headers: combineHeaders(
           resolvedHeaders,
-          options.headers,
+          sanitizeHeaders(options.headers),
           this.getModelConfigHeaders(this.modelId, true),
           await resolve(this.config.o11yHeaders),
         ),
