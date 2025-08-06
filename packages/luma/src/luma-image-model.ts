@@ -30,6 +30,19 @@ interface LumaImageModelConfig {
   };
 }
 
+function isValidImageUrl(url: string, allowedBase: string): boolean {
+  try {
+    const parsed = new URL(url);
+    // Only allow https URLs
+    if (parsed.protocol !== 'https:') return false;
+    // Only allow URLs that start with the configured baseURL
+    if (!parsed.href.startsWith(allowedBase)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export class LumaImageModel implements ImageModelV2 {
   readonly specificationVersion = 'v2';
   readonly maxImagesPerCall = 1;
@@ -151,6 +164,13 @@ export class LumaImageModel implements ImageModelV2 {
               message: `Image generation completed but no image was found.`,
             });
           }
+          // Validate the image URL before returning
+          if (!isValidImageUrl(statusResponse.assets.image, this.config.baseURL)) {
+            throw new InvalidResponseDataError({
+              data: statusResponse,
+              message: `Received image URL is invalid or not allowed.`,
+            });
+          }
           return statusResponse.assets.image;
         case 'failed':
           throw new InvalidResponseDataError({
@@ -184,6 +204,13 @@ export class LumaImageModel implements ImageModelV2 {
     url: string,
     abortSignal: AbortSignal | undefined,
   ): Promise<Uint8Array> {
+    // Validate the URL again before downloading
+    if (!isValidImageUrl(url, this.config.baseURL)) {
+      throw new InvalidResponseDataError({
+        data: { url },
+        message: `Attempted to download from an invalid or disallowed URL.`,
+      });
+    }
     const { value: response } = await getFromApi({
       url,
       // No specific headers should be needed for this request as it's a
