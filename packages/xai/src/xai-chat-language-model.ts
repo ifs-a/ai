@@ -23,6 +23,37 @@ import { XaiChatModelId, xaiProviderOptions } from './xai-chat-options';
 import { xaiFailedResponseHandler } from './xai-error';
 import { prepareTools } from './xai-prepare-tools';
 
+// SSRF mitigation: restrict baseURL to allowed hosts and protocols
+function validateBaseURL(baseURL: string | undefined): string {
+  const DEFAULT_URL = 'https://api.x.ai/v1';
+  if (!baseURL) return DEFAULT_URL;
+  let url: URL;
+  try {
+    url = new URL(baseURL);
+  } catch {
+    throw new Error('Invalid baseURL: not a valid URL');
+  }
+  // Only allow https protocol
+  if (url.protocol !== 'https:') {
+    throw new Error('Invalid baseURL: only https protocol is allowed');
+  }
+  // Only allow specific host(s)
+  const allowedHosts = ['api.x.ai'];
+  if (!allowedHosts.includes(url.hostname)) {
+    throw new Error('Invalid baseURL: host is not allowed');
+  }
+  // Only allow default port or 443
+  if (url.port && url.port !== '443') {
+    throw new Error('Invalid baseURL: only default https port is allowed');
+  }
+  // Only allow path to be empty or /v1
+  if (url.pathname !== '' && url.pathname !== '/' && url.pathname !== '/v1') {
+    throw new Error('Invalid baseURL: path is not allowed');
+  }
+  // Remove trailing slash for consistency
+  return url.origin + (url.pathname === '/v1' ? '/v1' : '');
+}
+
 type XaiChatConfig = {
   provider: string;
   baseURL: string | undefined;
@@ -37,10 +68,12 @@ export class XaiChatLanguageModel implements LanguageModelV2 {
   readonly modelId: XaiChatModelId;
 
   private readonly config: XaiChatConfig;
+  private readonly validatedBaseURL: string;
 
   constructor(modelId: XaiChatModelId, config: XaiChatConfig) {
     this.modelId = modelId;
     this.config = config;
+    this.validatedBaseURL = validateBaseURL(config.baseURL);
   }
 
   get provider(): string {
@@ -214,7 +247,7 @@ export class XaiChatLanguageModel implements LanguageModelV2 {
       value: response,
       rawValue: rawResponse,
     } = await postJsonToApi({
-      url: `${this.config.baseURL ?? 'https://api.x.ai/v1'}/chat/completions`,
+      url: `${this.validatedBaseURL}/chat/completions`,
       headers: combineHeaders(this.config.headers(), options.headers),
       body,
       failedResponseHandler: xaiFailedResponseHandler,
@@ -312,7 +345,7 @@ export class XaiChatLanguageModel implements LanguageModelV2 {
     };
 
     const { responseHeaders, value: response } = await postJsonToApi({
-      url: `${this.config.baseURL ?? 'https://api.x.ai/v1'}/chat/completions`,
+      url: `${this.validatedBaseURL}/chat/completions`,
       headers: combineHeaders(this.config.headers(), options.headers),
       body,
       failedResponseHandler: xaiFailedResponseHandler,
