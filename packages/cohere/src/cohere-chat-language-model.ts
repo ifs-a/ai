@@ -24,6 +24,21 @@ import { convertToCohereChatPrompt } from './convert-to-cohere-chat-prompt';
 import { mapCohereFinishReason } from './map-cohere-finish-reason';
 import { prepareTools } from './cohere-prepare-tools';
 
+// Helper function to validate baseURL
+function validateBaseURL(url: string): string {
+  try {
+    const parsed = new URL(url);
+    // Only allow http and https protocols
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      throw new Error('Invalid protocol for baseURL. Only http and https are allowed.');
+    }
+    // Optionally, restrict to known hosts or patterns here if needed
+    return parsed.origin;
+  } catch (e) {
+    throw new Error('Invalid baseURL provided to CohereChatLanguageModel: ' + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 type CohereChatConfig = {
   provider: string;
   baseURL: string;
@@ -42,10 +57,12 @@ export class CohereChatLanguageModel implements LanguageModelV2 {
   };
 
   private readonly config: CohereChatConfig;
+  private readonly validatedBaseURL: string;
 
   constructor(modelId: CohereChatModelId, config: CohereChatConfig) {
     this.modelId = modelId;
     this.config = config;
+    this.validatedBaseURL = validateBaseURL(config.baseURL);
   }
 
   get provider(): string {
@@ -123,7 +140,7 @@ export class CohereChatLanguageModel implements LanguageModelV2 {
       value: response,
       rawValue: rawResponse,
     } = await postJsonToApi({
-      url: `${this.config.baseURL}/chat`,
+      url: `${this.validatedBaseURL}/chat`,
       headers: combineHeaders(this.config.headers(), options.headers),
       body: args,
       failedResponseHandler: cohereFailedResponseHandler,
@@ -203,7 +220,7 @@ export class CohereChatLanguageModel implements LanguageModelV2 {
     const { args, warnings } = this.getArgs(options);
 
     const { responseHeaders, value: response } = await postJsonToApi({
-      url: `${this.config.baseURL}/chat`,
+      url: `${this.validatedBaseURL}/chat`,
       headers: combineHeaders(this.config.headers(), options.headers),
       body: { ...args, stream: true },
       failedResponseHandler: cohereFailedResponseHandler,
