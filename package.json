@@ -44,7 +44,7 @@
     "react-dom": "19.0.0-rc-cc1ec60d0d-20240607",
     "turbo": "2.4.4",
     "typescript": "5.8.3",
-    "vitest": "2.1.4"
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": "^18.0.0 || ^20.0.0 || ^22.0.0"
