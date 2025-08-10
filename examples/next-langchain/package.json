@@ -14,10 +14,10 @@
     "@langchain/openai": "0.0.28",
     "@langchain/core": "0.1.63",
     "ai": "workspace:*",
-    "langchain": "0.1.36",
     "next": "latest",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "langchain": "^0.2.19"
   },
   "devDependencies": {
     "@types/node": "20.17.24",
