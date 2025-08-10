@@ -69,9 +69,9 @@
     "@vercel/ai-tsconfig": "workspace:*",
     "eslint": "8.57.1",
     "eslint-config-vercel-ai": "workspace:*",
-    "tsup": "^7.2.0",
     "typescript": "5.8.3",
-    "zod": "3.25.76"
+    "zod": "3.25.76",
+    "tsup": "^8.3.5"
   },
   "peerDependencies": {
     "zod": "^3.25.76 || ^4"
